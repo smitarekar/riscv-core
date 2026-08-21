@@ -32,6 +32,9 @@ R_TYPE = {
     "sra":  (0b0100000, 0b101, 0b0110011),
     "or":   (0b0000000, 0b110, 0b0110011),
     "and":  (0b0000000, 0b111, 0b0110011),
+    # custom-0 (opcode 0001011): rd = rd + (rs1 * rs2). funct7=0000001 is
+    # the documented encoding; see docs/architecture.md.
+    "macc": (0b0000001, 0b000, 0b0001011),
 }
 I_TYPE_ALU = {
     # mnemonic: (funct3, opcode)
@@ -171,8 +174,11 @@ def encode(addr, line, labels):
         funct3 = BRANCHES[mnem]
         opcode = 0b1100011
         rs1, rs2 = reg(ops[0]), reg(ops[1])
-        target = labels[ops[2]] if ops[2] in labels else int(ops[2], 0)
-        off = target - addr
+        # A label resolves to an absolute address, so it needs off=target-addr
+        # to become PC-relative. A bare number is already meant as the
+        # relative offset itself (this is what makes `halt` -> `jal x0, 0`
+        # a true self-loop instead of a jump back to address 0).
+        off = (labels[ops[2]] - addr) if ops[2] in labels else int(ops[2], 0)
         imm = imm_bits(off, 13)
         b12 = (imm >> 12) & 1
         b11 = (imm >> 11) & 1
@@ -182,8 +188,8 @@ def encode(addr, line, labels):
 
     if mnem == "jal":
         rd = reg(ops[0])
-        target = labels[ops[1]] if ops[1] in labels else int(ops[1], 0)
-        off = target - addr
+        # See the identical comment in the BRANCHES case just above.
+        off = (labels[ops[1]] - addr) if ops[1] in labels else int(ops[1], 0)
         imm = imm_bits(off, 21)
         b20 = (imm >> 20) & 1
         b19_12 = (imm >> 12) & 0xFF
