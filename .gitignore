@@ -3,5 +3,6 @@
 *.out
 sim/*.vvp
 sim/*.vcd
+tb/programs/*.hex
 __pycache__/
 .DS_Store

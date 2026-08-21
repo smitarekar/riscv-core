@@ -10,8 +10,11 @@ module instr_mem #(
     output     [31:0] instr
 );
     reg [31:0] mem [0:NUM_WORDS-1];
+    integer i;
 
     initial begin
+        for (i = 0; i < NUM_WORDS; i = i + 1)
+            mem[i] = 32'd0;
         if (HEXFILE != "")
             $readmemh(HEXFILE, mem);
     end
