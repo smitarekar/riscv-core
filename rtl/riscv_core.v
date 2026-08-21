@@ -15,7 +15,7 @@ module riscv_core #(
     wire [2:0] funct3    = instr[14:12];
     wire [4:0] rs1_addr  = instr[19:15];
     wire [4:0] rs2_addr  = instr[24:20];
-    wire       funct7b5  = instr[30];
+    wire [6:0] funct7    = instr[31:25];
 
     wire [31:0] imm;
 
@@ -24,11 +24,12 @@ module riscv_core #(
     wire       alu_src_b_sel;
     wire [3:0] alu_op;
 
-    wire [31:0] rs1_data, rs2_data;
+    wire [31:0] rs1_data, rs2_data, rd_rdata;
     wire [31:0] alu_src_a, alu_src_b;
     wire [31:0] alu_result;
     wire        alu_zero_unused;
     wire [31:0] mem_rdata;
+    wire [31:0] mac_result;
     wire [31:0] wb_data;
 
     // ---- Fetch ----
@@ -43,7 +44,7 @@ module riscv_core #(
     imm_gen u_imm_gen (.instr(instr), .imm(imm));
 
     control_unit u_ctrl (
-        .opcode(opcode), .funct3(funct3), .funct7b5(funct7b5),
+        .opcode(opcode), .funct3(funct3), .funct7(funct7),
         .reg_write(reg_write), .mem_read(mem_read), .mem_write(mem_write),
         .is_branch(is_branch), .jump(jump), .jalr(jalr),
         .alu_src_a(alu_src_a_sel), .alu_src_b(alu_src_b_sel),
@@ -54,7 +55,7 @@ module riscv_core #(
         .clk(clk), .we(reg_write),
         .rs1_addr(rs1_addr), .rs2_addr(rs2_addr),
         .rd_addr(rd_addr), .rd_data(wb_data),
-        .rs1_data(rs1_data), .rs2_data(rs2_data)
+        .rs1_data(rs1_data), .rs2_data(rs2_data), .rd_rdata(rd_rdata)
     );
 
     // ---- Execute ----
@@ -66,6 +67,15 @@ module riscv_core #(
     alu u_alu (
         .a(alu_src_a), .b(alu_src_b), .alu_op(alu_op),
         .result(alu_result), .zero(alu_zero_unused)
+    );
+
+    // MACC: rd = rd + (rs1 * rs2). Runs off rs1_data/rs2_data/rd_rdata
+    // directly, not through the ALU's src muxes -- same reasoning as the
+    // branch comparator below, it always computes, and result_src just
+    // decides whether anyone uses it this cycle.
+    mac_unit u_mac (
+        .acc(rd_rdata), .a(rs1_data), .b(rs2_data),
+        .result(mac_result)
     );
 
     // Branch condition is computed directly off rs1/rs2, independent of
@@ -93,6 +103,7 @@ module riscv_core #(
     // ---- Write-back ----
     assign wb_data = (result_src == 2'b01) ? mem_rdata :
                       (result_src == 2'b10) ? pc_plus4 :
+                      (result_src == 2'b11) ? mac_result :
                       alu_result;
 
     // ---- Next PC ----

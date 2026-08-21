@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 
-// Decodes opcode/funct3/funct7[5] into datapath control signals.
+// Decodes opcode/funct3/funct7 into datapath control signals.
 // alu_op encoding must stay in sync with alu.v's localparams.
 module control_unit (
     input  [6:0] opcode,
     input  [2:0] funct3,
-    input        funct7b5,
+    input  [6:0] funct7,
     output reg       reg_write,
     output reg       mem_read,
     output reg       mem_write,
@@ -14,9 +14,10 @@ module control_unit (
     output reg       jalr,     // JALR
     output reg [1:0] alu_src_a, // 00=rs1, 01=pc, 10=zero
     output reg       alu_src_b, // 0=rs2, 1=imm
-    output reg [1:0] result_src, // 00=alu_result, 01=mem_data, 10=pc_plus_4
+    output reg [1:0] result_src, // 00=alu_result, 01=mem_data, 10=pc_plus_4, 11=mac_result
     output reg [3:0] alu_op
 );
+    wire funct7b5 = funct7[5];
     localparam ALU_ADD  = 4'b0000;
     localparam ALU_SUB  = 4'b0001;
     localparam ALU_SLL  = 4'b0010;
@@ -35,8 +36,9 @@ module control_unit (
     localparam OP_BRANCH = 7'b1100011;
     localparam OP_JALR   = 7'b1100111;
     localparam OP_JAL    = 7'b1101111;
-    localparam OP_LUI    = 7'b0110111;
-    localparam OP_AUIPC  = 7'b0010111;
+    localparam OP_LUI     = 7'b0110111;
+    localparam OP_AUIPC   = 7'b0010111;
+    localparam OP_CUSTOM0 = 7'b0001011; // MACC: rd = rd + (rs1 * rs2); see docs/architecture.md
 
     // ALU op only matters for R-type / I-type-ALU; everything else that
     // still uses the ALU (loads, stores, jalr, auipc) needs a plain add.
@@ -127,6 +129,20 @@ module control_unit (
                 reg_write  = 1'b1;
                 alu_src_a  = 2'b01; // pc
                 alu_src_b  = 1'b1;  // imm
+            end
+            OP_CUSTOM0: begin
+                case (funct3)
+                    3'b000: begin // MACC (funct7=0000001 is the documented
+                                  // encoding but isn't checked here -- this
+                                  // core doesn't trap on any malformed
+                                  // instruction, so gating just this one
+                                  // opcode on an exact funct7 match would be
+                                  // inconsistent with everything else)
+                        reg_write  = 1'b1;
+                        result_src = 2'b11; // mac_result
+                    end
+                    default: ; // other custom-0 funct3 values reserved, not implemented
+                endcase
             end
             default: ; // NOP-safe: all outputs stay at their defaults above
         endcase
