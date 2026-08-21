@@ -1,7 +1,9 @@
 # riscv-core
 
-A single-cycle RV32I RISC-V core written in Verilog, verified against
-hand-assembled test programs.
+A single-cycle RV32I core I wrote in Verilog to actually understand
+the ISA end to end, not just read about it. Every module has its own
+testbench, and the whole thing runs three hand-assembled programs to
+prove the datapath is wired up correctly, not just that it compiles.
 
 ```
 $ cd sim && make sim
@@ -12,43 +14,45 @@ PASS [dstore_pass_flag] = 1
 RISCV_CORE TB: PASS (3 checks)
 ```
 
-See [`docs/architecture.md`](docs/architecture.md) for the datapath
-diagram, module breakdown, and design decisions.
+[`docs/architecture.md`](docs/architecture.md) has the datapath
+diagram and the reasoning behind a few of the design choices,
+including one funct7 aliasing gotcha that almost got past me.
 
-## Goals
+## Why single-cycle
 
-- Implement the RV32I base integer instruction set on a single-cycle datapath.
-- Verify against hand-written assembly programs using a self-checking testbench.
-- Keep the design simple and readable over squeezing out performance —
-  this is a learning/portfolio project, not a production core.
+Pipelining is the obvious next step for "impressive," but it also
+drags in hazard detection and forwarding, which is a different problem
+from "does this correctly implement RV32I." I wanted to nail the ISA
+first. Might come back and pipeline it later.
 
 ## Layout
 
 ```
 rtl/    synthesizable Verilog sources
-tb/     testbench + assembly test programs
-sim/    Makefile for Icarus Verilog simulation
-docs/   architecture notes
+tb/     testbenches + hand-assembled test programs
+sim/    Makefile for Icarus Verilog
+docs/   architecture notes + datapath diagram
 ```
 
-## Supported instructions (RV32I subset)
+## What's implemented
 
 R-type (ADD/SUB/SLL/SLT/SLTU/XOR/SRL/SRA/OR/AND), I-type ALU ops,
 LB/LH/LW/LBU/LHU, SB/SH/SW, BEQ/BNE/BLT/BGE/BLTU/BGEU, JAL/JALR,
-LUI/AUIPC. No FENCE/ECALL/CSR — no exceptions or interrupts.
+LUI/AUIPC. No FENCE/ECALL/CSRs, so no exceptions or interrupts —
+wasn't trying to boot an OS on this.
 
-## Build & simulate
+## Building it
 
-Requires [Icarus Verilog](http://iverilog.icarus.com/).
+Needs [Icarus Verilog](http://iverilog.icarus.com/).
 
 ```
 cd sim
-make sim     # assemble test programs, run unit tests, run full-core test
-make wave    # open the last VCD in gtkwave
+make sim     # assembles the test programs, runs every unit test, then the full core
+make wave    # pops the last VCD open in gtkwave
 ```
 
-Each module also has its own standalone testbench under `tb/` if you want
-to run/inspect one in isolation, e.g.:
+Individual modules have their own testbench too, if you just want to
+poke at one:
 
 ```
 iverilog -o /tmp/tb_alu.vvp rtl/alu.v tb/tb_alu.v && vvp /tmp/tb_alu.vvp
