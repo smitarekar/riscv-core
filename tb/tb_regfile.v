@@ -5,7 +5,7 @@ module tb_regfile;
     reg we;
     reg [4:0] rs1_addr, rs2_addr, rd_addr;
     reg [31:0] rd_data;
-    wire [31:0] rs1_data, rs2_data;
+    wire [31:0] rs1_data, rs2_data, rd_rdata;
 
     integer errors = 0;
     integer checks = 0;
@@ -14,7 +14,7 @@ module tb_regfile;
         .clk(clk), .we(we),
         .rs1_addr(rs1_addr), .rs2_addr(rs2_addr),
         .rd_addr(rd_addr), .rd_data(rd_data),
-        .rs1_data(rs1_data), .rs2_data(rs2_data)
+        .rs1_data(rs1_data), .rs2_data(rs2_data), .rd_rdata(rd_rdata)
     );
 
     always #5 clk = ~clk;
@@ -61,6 +61,26 @@ module tb_regfile;
         @(negedge clk);
         rs1_addr = 5'd20;
         #1 check(rs1_data, 32'd0, "write_disabled_no_effect");
+
+        // rd_rdata / rd_data sequencing: write 0x1000 to x9, confirm it
+        // landed, then start a SECOND write (0x2000) to x9 and sample
+        // rd_rdata mid-cycle -- it must still show the OLD value, since
+        // the write is a clocked nonblocking assignment and rd_rdata is a
+        // plain combinational read. This is the exact property MACC's
+        // accumulator relies on: read-old and write-new never race within
+        // the same cycle.
+        @(negedge clk);
+        we = 1; rd_addr = 5'd9; rd_data = 32'h00001000; rs1_addr = 5'd9;
+        @(negedge clk);
+        we = 0;
+        #1 check(rs1_data, 32'h00001000, "x9_write_landed");
+
+        @(negedge clk);
+        we = 1; rd_addr = 5'd9; rd_data = 32'h00002000;
+        #1 check(rd_rdata, 32'h00001000, "rd_rdata_sees_old_value_mid_write");
+        @(negedge clk);
+        we = 0; rs1_addr = 5'd9;
+        #1 check(rs1_data, 32'h00002000, "write_landed_next_cycle");
 
         if (errors == 0)
             $display("REGFILE TB: PASS (%0d checks)", checks);
