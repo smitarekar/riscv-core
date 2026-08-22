@@ -1,6 +1,6 @@
 <mxfile host="Electron">
   <diagram id="sJekjz1D6jSuBEegLO6W" name="pageWithNumber">
-    <mxGraphModel dx="-351" dy="-299" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="0" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="-351" dy="-299" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="0" page="0" pageScale="1" pageWidth="850" pageHeight="1312" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -306,10 +306,8 @@
         <mxCell id="title1" value="RV32I single-cycle datapath" style="text;html=1;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
           <mxGeometry x="10" y="-40" width="600" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="legend1" value="Yellow = pipeline stage grouping. Blue = datapath/control functional blocks. Green = storage (instruction memory, register file, data memory). Purple = the control unit (opcode -&gt; control signals). Dashed edges are the next-PC control paths (pc+4, pc+imm for branches, jalr target, taken); solid edges are data." style="text;html=1;fontSize=11;align=left;" vertex="1" parent="1">
-          <mxGeometry x="10" y="1120" width="740" height="70" as="geometry" />
-        </mxCell>
-      </root>
+        
+      <mxCell id="lg1001" value="Legend" style="text;html=1;whiteSpace=wrap;fontStyle=1;align=left;valign=middle;fontSize=12;" vertex="1" parent="1"><mxGeometry x="10" y="1120" width="300" height="20" as="geometry"/></mxCell><mxCell id="lg1002" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=1;" vertex="1" parent="1"><mxGeometry x="10" y="1146" width="22" height="16" as="geometry"/></mxCell><mxCell id="lg1003" value="Pipeline-stage grouping (fetch / decode / execute / memory / write-back)" style="text;html=1;whiteSpace=wrap;align=left;valign=middle;fontSize=11;" vertex="1" parent="1"><mxGeometry x="42" y="1143" width="900" height="22" as="geometry"/></mxCell><mxCell id="lg1004" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=1;" vertex="1" parent="1"><mxGeometry x="10" y="1170" width="22" height="16" as="geometry"/></mxCell><mxCell id="lg1005" value="Datapath and control functional blocks" style="text;html=1;whiteSpace=wrap;align=left;valign=middle;fontSize=11;" vertex="1" parent="1"><mxGeometry x="42" y="1167" width="900" height="22" as="geometry"/></mxCell><mxCell id="lg1006" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=1;" vertex="1" parent="1"><mxGeometry x="10" y="1194" width="22" height="16" as="geometry"/></mxCell><mxCell id="lg1007" value="Storage: instruction memory, register file, data memory" style="text;html=1;whiteSpace=wrap;align=left;valign=middle;fontSize=11;" vertex="1" parent="1"><mxGeometry x="42" y="1191" width="900" height="22" as="geometry"/></mxCell><mxCell id="lg1008" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=1;" vertex="1" parent="1"><mxGeometry x="10" y="1218" width="22" height="16" as="geometry"/></mxCell><mxCell id="lg1009" value="The control unit (opcode -&gt; control signals)" style="text;html=1;whiteSpace=wrap;align=left;valign=middle;fontSize=11;" vertex="1" parent="1"><mxGeometry x="42" y="1215" width="900" height="22" as="geometry"/></mxCell><mxCell id="lgnotedp" value="Dashed edges are the next-PC control paths (pc+4, pc+imm for branches, jalr target, taken); solid edges are data." style="text;html=1;whiteSpace=wrap;align=left;valign=middle;fontSize=11;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="10" y="1252" width="900" height="30" as="geometry"/></mxCell></root>
     </mxGraphModel>
   </diagram>
 </mxfile>

@@ -3,10 +3,62 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![HDL: Verilog](https://img.shields.io/badge/HDL-Verilog-blue.svg)
 
-A single-cycle RV32I core I wrote in Verilog to actually understand
-the ISA end to end, not just read about it. Every module has its own
-testbench, and the whole thing runs six hand-assembled programs to
-prove the datapath is wired up correctly, not just that it compiles.
+A single-cycle RV32I core (a small, working CPU implementing the base
+32-bit RISC-V instruction set) I wrote in Verilog — a hardware
+description language, meaning this code describes a digital circuit,
+not a program that runs on a processor — to actually understand the
+ISA end to end, not just read about it. An ISA (instruction set
+architecture) is the contract between hardware and software: the fixed
+list of instructions a CPU understands and exactly what each one does,
+so any program compiled for that ISA runs correctly on any CPU that
+implements it. Every module has its own testbench (a piece of code
+that automatically tests another piece of code), and the whole thing
+runs six hand-assembled programs to prove the datapath (the actual
+hardware path data flows through — registers, the ALU, memory, and the
+wires between them) is wired up correctly, not just that it compiles.
+
+<details>
+<summary>For readers new to this</summary>
+
+- **CPU / core** — the part of a chip that actually executes
+  instructions: fetches one from memory, figures out what it means,
+  does the work, and moves to the next one. "Core" here just means
+  this repo implements one CPU, not a whole chip with peripherals
+  around it.
+- **RV32I** — the base 32-bit integer instruction set of RISC-V, an
+  open (royalty-free, publicly specified) ISA. "I" means the base
+  integer set — no floating point, no multiply/divide, just the
+  instructions every RISC-V CPU is required to support: arithmetic,
+  loads/stores, branches, jumps. This core adds one custom instruction
+  beyond that (MACC, below).
+- **Datapath** — the actual hardware data flows through while an
+  instruction executes: registers, the ALU, memory, and the wires
+  connecting them. The [Architecture](#architecture) section below has
+  two views of it: a simplified concept diagram, then the real one.
+- **Single-cycle** — this design finishes fetching, decoding,
+  executing, and writing back one instruction in a single clock edge,
+  then starts the next instruction fresh. The alternative, a
+  *pipeline*, overlaps multiple instructions at different stages
+  simultaneously for higher throughput, at the cost of a lot more
+  complexity (see [The datapath](#the-datapath) for why this repo
+  didn't do that).
+- **ALU (Arithmetic Logic Unit)** — the block that actually does the
+  math: add, subtract, compare, shift, bitwise AND/OR/XOR, one
+  operation per instruction, selected by a control signal.
+- **Opcode / funct3 / funct7** — RISC-V instructions are fixed-width
+  32-bit values, and the *opcode* (a specific bit field) says roughly
+  what family an instruction belongs to (arithmetic, load, branch,
+  ...); *funct3* and *funct7* are additional bit fields that narrow
+  that down further (e.g. distinguishing ADD from SUB).
+- **Register file** — the CPU's small, fast internal storage: 32
+  numbered 32-bit registers instructions read operands from and write
+  results to, as opposed to slower main memory.
+- **Golden model** — an independent reference implementation (here, a
+  plain Python script that re-executes the same instructions) used to
+  check the RTL's answers against, so a bug can't hide behind "the
+  RTL agrees with itself."
+
+</details>
 
 | | |
 |---|---|
@@ -16,6 +68,7 @@ prove the datapath is wired up correctly, not just that it compiles.
 
 ## Contents
 
+- [Architecture](#architecture)
 - [The datapath](#the-datapath)
 - [Modules](#modules)
 - [MACC](#macc)
@@ -23,6 +76,7 @@ prove the datapath is wired up correctly, not just that it compiles.
 - [How I'm checking it's actually correct](#how-im-checking-its-actually-correct)
 - [Layout](#layout)
 - [Building it](#building-it)
+- [References](#references)
 - [License](#license)
 
 ```
@@ -43,18 +97,34 @@ GOLDEN [macc_overflow_mem0] = 1 (matches sim)
 GOLDEN_CHECK: PASS (4 checks)
 ```
 
+## Architecture
+
+The big picture first, no signal names — what every instruction goes
+through:
+
+![The big picture: what happens to one instruction](docs/diagrams/concept.svg)
+
+This core does all four steps for one instruction in a single clock
+cycle ("single-cycle" — see the glossary above), then starts the next
+instruction's fetch on the next clock edge.
+
+The detailed view below shows the real modules and wires (glossary
+above covers every term used in it):
+
 ## The datapath
 
 I went with a single-cycle datapath instead of a pipeline on purpose. A
 5-stage pipeline is the more "impressive" thing to build, but it also
-means hazard detection, forwarding, branch misprediction handling — a
-lot of surface area where subtle bugs hide, and a lot of that
-complexity has nothing to do with actually understanding the ISA.
-Single-cycle gets every instruction fetched, decoded, executed,
-memory-accessed and written back in one clock edge, which makes the
-whole thing easy to reason about and, more importantly, easy to
-verify against hand-written test programs. Pipelining it is a natural
-next step if I come back to this.
+means hazard detection (catching cases where one instruction needs a
+result the previous one hasn't produced yet), forwarding (routing that
+result directly where it's needed instead of waiting), branch
+misprediction handling — a lot of surface area where subtle bugs hide,
+and a lot of that complexity has nothing to do with actually
+understanding the ISA. Single-cycle gets every instruction fetched,
+decoded, executed, memory-accessed and written back in one clock edge,
+which makes the whole thing easy to reason about and, more
+importantly, easy to verify against hand-written test programs.
+Pipelining it is a natural next step if I come back to this.
 
 ![RV32I single-cycle datapath](docs/diagrams/datapath.svg)
 
@@ -62,15 +132,15 @@ next step if I come back to this.
 
 | Module | What it does |
 |---|---|
-| `program_counter.v` | Holds PC, updates from `pc_next` every cycle |
-| `instr_mem.v` | Word-addressed ROM, loaded via `$readmemh` |
-| `imm_gen.v` | Sign-extends I/S/B/U/J-type immediates depending on opcode |
+| `program_counter.v` | Holds PC (program counter — the address of the current instruction), updates from `pc_next` every cycle |
+| `instr_mem.v` | Word-addressed ROM, loaded via `$readmemh` (a Verilog simulation command that loads a memory array from a hex text file) |
+| `imm_gen.v` | Sign-extends I/S/B/U/J-type immediates depending on opcode (an *immediate* is a constant value baked directly into an instruction, rather than read from a register; RISC-V has several instruction layouts — I/S/B/U/J-type — that place that constant in different bit positions) |
 | `control_unit.v` | Turns opcode/funct3/funct7[5] into every control signal in the datapath, including the ALU op |
-| `regfile.v` | 32x32-bit registers, x0 hardwired to zero, async read / sync write |
+| `regfile.v` | 32x32-bit registers, x0 hardwired to zero, async read / sync write (reads reflect the current value immediately; writes only take effect on a clock edge) |
 | `alu.v` | ADD/SUB/SLL/SLT/SLTU/XOR/SRL/SRA/OR/AND |
 | `data_mem.v` | Byte-addressable, handles sized/signed loads and stores |
-| `mac_unit.v` | Combinational: `acc + (a * b)`, used by MACC |
-| `riscv_core.v` | Wires all of the above together, plus the muxes and the branch comparator |
+| `mac_unit.v` | Combinational (output follows input instantly, no clock delay): `acc + (a * b)`, used by MACC |
+| `riscv_core.v` | Wires all of the above together, plus the muxes (a *mux*, multiplexer, picks one of several input signals to pass through, based on a select signal) and the branch comparator |
 
 <details>
 <summary>A couple of decisions worth explaining</summary>
@@ -142,13 +212,14 @@ cover — reading three different registers for one instruction needs a
 third read port. `regfile.v` now exposes `rd_rdata`: a combinational
 read at `rd_addr`, the same address the write port already uses.
 Because that read is combinational and the write is a clocked
-nonblocking assignment, `rd_rdata` reflects the OLD value for the
-entire cycle no matter what MACC is about to write — the new value
-isn't visible until the next posedge. No extra sequencing logic is
-needed; this is just how the register file already worked for every
-other instruction, MACC just needed a third port to see it.
-`tb_regfile.v` has a check for this exact property
-(`rd_rdata_sees_old_value_mid_write`).
+nonblocking assignment (Verilog's `<=`, which takes effect at the end
+of the current simulation step rather than immediately), `rd_rdata`
+reflects the OLD value for the entire cycle no matter what MACC is
+about to write — the new value isn't visible until the next posedge
+(positive clock edge). No extra sequencing logic is needed; this is
+just how the register file already worked for every other instruction,
+MACC just needed a third port to see it. `tb_regfile.v` has a check
+for this exact property (`rd_rdata_sees_old_value_mid_write`).
 
 `mac_unit.v` is a small combinational module alongside the ALU:
 `result = acc + (a * b)`, fed by `rd_rdata`/`rs1_data`/`rs2_data`
@@ -210,9 +281,11 @@ Jumps: JAL, JALR
 Upper immediate: LUI, AUIPC
 Custom: MACC (see above)
 
-Not implemented: FENCE, ECALL/EBREAK, CSRs — no exceptions or
-interrupts. Wasn't trying to run an OS on this, just wanted a correct
-integer core.
+Not implemented: FENCE (an instruction-ordering/memory-ordering
+directive), ECALL/EBREAK (traps into an operating system or
+debugger), CSRs (control/status registers, used for things like
+interrupt configuration) — no exceptions or interrupts. Wasn't trying
+to run an OS on this, just wanted a correct integer core.
 
 ## How I'm checking it's actually correct
 
@@ -252,13 +325,14 @@ docs/   datapath diagrams
 
 ## Building it
 
-Needs [Icarus Verilog](http://iverilog.icarus.com/).
+Needs [Icarus Verilog](https://steveicarus.github.io/iverilog/).
 
 ```
 cd sim
 make sim     # assembles the test programs, runs every unit test, the full core,
              # then cross-checks the MACC results against tb/golden_model.py
-make wave    # pops the last VCD open in gtkwave
+make wave    # pops the last VCD open in gtkwave (a waveform viewer -- VCD
+             # is the standard file format simulators dump signal traces to)
 ```
 
 `make sim`'s last step (`make golden`) runs `tb/check_against_golden.py`
@@ -273,6 +347,19 @@ poke at one:
 ```
 iverilog -o /tmp/tb_alu.vvp rtl/alu.v tb/tb_alu.v && vvp /tmp/tb_alu.vvp
 ```
+
+## References
+
+Every link below was checked at the time this was written.
+
+- [The RISC-V Instruction Set Manual, Volume I: Unprivileged Architecture](https://riscv.github.io/riscv-isa-manual/snapshot/spec/) —
+  the official specification for RV32I and the encoding rules this
+  core implements.
+- [IEEE 1364-2005: IEEE Standard for Verilog Hardware Description Language](https://standards.ieee.org/ieee/1364/3641/) —
+  the language standard `rtl/`'s Verilog is written against.
+- [Icarus Verilog](https://steveicarus.github.io/iverilog/) — the
+  open-source simulator used to build and run every test in this
+  repo.
 
 ## License
 
