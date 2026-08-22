@@ -111,6 +111,8 @@ instruction's fetch on the next clock edge.
 The detailed view below shows the real modules and wires (glossary
 above covers every term used in it):
 
+![RV32I single-cycle datapath](docs/diagrams/datapath.svg)
+
 ## The datapath
 
 I went with a single-cycle datapath instead of a pipeline on purpose. A
@@ -125,8 +127,6 @@ decoded, executed, memory-accessed and written back in one clock edge,
 which makes the whole thing easy to reason about and, more
 importantly, easy to verify against hand-written test programs.
 Pipelining it is a natural next step if I come back to this.
-
-![RV32I single-cycle datapath](docs/diagrams/datapath.svg)
 
 ## Modules
 
