@@ -6,3 +6,7 @@ sim/*.vcd
 tb/programs/*.hex
 __pycache__/
 .DS_Store
+
+# documentation-pass scaffolding, not deliverables
+.design-brief.md
+.sections/
