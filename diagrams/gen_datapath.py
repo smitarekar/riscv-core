@@ -22,7 +22,7 @@ e = d.edge
 
 # ---- fetch / decode ----
 e([pc["s"], imem["n"]])
-e([imem["e"], (200, 400), (200, 100), (immgen["c"][0], 100), immgen["n"]], label="instr", label_pos=0.77)
+e([imem["e"], (200, 400), (200, 100), (immgen["c"][0], 100), immgen["n"]], label="instr", label_pos=0.34)
 e([imem["e"], ctrl["w"]], label="opcode/f3/f7")
 e([imem["e"], (230, 375), (230, 280), (500, 280)], label="rs1/rs2/rd addr")
 
@@ -39,14 +39,14 @@ e([immgen["n"], (340, 100), (895, 100), (895, opmux["box_y"])], label="imm")
 e([opmux["e"], alu["w"]])
 e([alu["e"], dmem["w"]], label="addr")
 e([alu["n"], (1125, 100), (1620, 100), (1620, wbmux["box_y"])], label="alu_result")
-e([mac["e"], (1220, 365), (1220, 205), wbmux["w"]], label="mac_result")
+e([mac["e"], (1220, 365), (1220, 270), (1470, 270), (1470, 240), (wbmux["box_x"], 240)], label="mac_result")
 e([dmem["e"], (wbmux["box_x"], 220)], label="mem_rdata")
-e([pc["e"], (1690, 175), (1690, 80), (1660, 80), (1660, wbmux["box_y"])], label="pc+4", label_pos=0.93)
+e([pc["e"], (210, 185), (210, 90), (1660, 90), (1660, wbmux["box_y"])], label="pc+4", label_pos=0.93)
 
 # ---- next-PC select ----
 e([bcmp["e"], (1230, 475), (1230, 560), (1875, 560), (1875, npc["box_y"]+npc["box_h"])], label="branch_taken")
 e([alu["s"], (1125, 250), (990, 250), (990, 600), (1830, 600), npc["s"]], label="alu_result (jalr)")
-e([pc["e"], (1710, 165), (1710, 60), (1810, 60), npc["n"]], label="pc+4 (default)", label_pos=0.9)
+e([pc["e"], (230, 185), (230, 70), (1875, 70), npc["n"]], label="pc+4 (default)", label_pos=0.9)
 
 legend_y = d.legend([
     ("blue", "Primary compute -- ALU, MAC unit"),
