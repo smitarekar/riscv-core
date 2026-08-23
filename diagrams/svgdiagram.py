@@ -1,10 +1,11 @@
 """Reusable raw-SVG diagram builder for vlsi-portfolio docs.
 
-Replaces the old draw.io + Python-generator + drawio-CLI pipeline
-(see DIAGRAM_STYLE.md) with directly hand-authored SVG, per the
-technical-svg-diagrams skill's mechanism -- but keeps the portfolio's
-own established semantic color palette, box/edge conventions, and
-legend requirement instead of that skill's default look.
+Directly hand-authored SVG (no draw.io, no headless-browser export
+step needed at commit time). Palette and conventions follow the
+diagram-maker skill's design system: semantic node roles only (no
+rainbow sequences), single uniform border color across every node,
+inline single-file SVG. See DIAGRAM_STYLE.md for the portfolio-wide
+role mapping this repo's generator scripts use.
 
 Usage pattern: create a Diagram, add container()/box() elements
 (each returns an anchor dict with edge-midpoint coordinates: n/s/e/w/
@@ -12,15 +13,30 @@ c), wire them with edge() using explicit waypoints, add a legend(),
 then write(path).
 """
 
+# diagram-maker's semantic roles (neutral/input/process/storage/
+# external/risk), single uniform stroke per its SVG template. The
+# portfolio's existing color-key names are kept as-is (blue/green/
+# purple/red/yellow/gray/white/orange) so every generator script
+# already written against this module keeps working unchanged --
+# only the values moved to diagram-maker's actual palette. See
+# DIAGRAM_STYLE.md for which semantic role each key now maps to.
+_LINE = "#64748b"  # diagram-maker's uniform node/connector stroke
 FILL = {
-    "blue":   ("#dae8fc", "#6c8ebf"),
-    "green":  ("#d5e8d4", "#82b366"),
-    "orange": ("#ffe6cc", "#d79b00"),
-    "purple": ("#e1d5e7", "#9673a6"),
-    "red":    ("#f8cecc", "#b85450"),
-    "yellow": ("#fff2cc", "#d6b656"),
-    "gray":   ("#f5f5f5", "#666666"),
-    "white":  ("#ffffff", "#d0d0d0"),
+    "blue":    ("#c7d2fe", _LINE),  # process   -- primary active compute
+    "green":   ("#99f6e4", _LINE),  # storage   -- registers/memory/"data lands here"
+    "purple":  ("#bfdbfe", _LINE),  # input     -- control/decode/config
+    "red":     ("#fecaca", _LINE),  # risk      -- critical/widened-format/second actor
+    "yellow":  ("#fde68a", _LINE),  # external  -- bridges/adapters/interfaces
+    "gray":    ("#e2e8f0", _LINE),  # neutral   -- grouping containers
+    "white":   ("#e2e8f0", _LINE),  # neutral   -- inert/empty
+    "orange":  ("#ffe6cc", "#d97706"),  # accent -- feedback/highlight edges + legend only, not a node role
+    # diagram-maker's own role names, as direct aliases
+    "process": ("#c7d2fe", _LINE),
+    "storage": ("#99f6e4", _LINE),
+    "input":   ("#bfdbfe", _LINE),
+    "risk":    ("#fecaca", _LINE),
+    "external": ("#fde68a", _LINE),
+    "neutral": ("#e2e8f0", _LINE),
 }
 
 
@@ -46,12 +62,13 @@ class Diagram:
             )
 
     # ---- boxes ----
-    def box(self, x, y, w, h, label, color, rounded=True, fontsize=12, bold=False):
+    def box(self, x, y, w, h, label, color, rounded=True, fontsize=12, bold=False, fill_opacity=None):
         fill, stroke = FILL[color]
         rx = 8 if rounded else 0
+        op = f' fill-opacity="{fill_opacity}"' if fill_opacity is not None else ""
         self.parts.append(
             f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" ry="{rx}" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
+            f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"{op}/>'
         )
         self._label(x, y, w, h, label, fontsize, bold)
         return {
@@ -111,7 +128,7 @@ class Diagram:
             acc += length
         return points[-1]
 
-    def edge(self, points, label=None, color="#333333", dashed=False, width=1.5, label_pos=0.5, label_bg=True):
+    def edge(self, points, label=None, color=_LINE, dashed=False, width=1.5, label_pos=0.5, label_bg=True):
         """points: list of (x, y) waypoints; arrowhead at the last point."""
         d = f"M {points[0][0]} {points[0][1]} " + " ".join(f"L {x} {y}" for x, y in points[1:])
         dash = ' stroke-dasharray="5,4"' if dashed else ""
@@ -180,7 +197,7 @@ class Diagram:
         arrow = (
             '<marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" '
             'orient="auto" markerUnits="strokeWidth">'
-            '<path d="M0,0 L0,6 L8,3 z" fill="#333333"/></marker>'
+            f'<path d="M0,0 L0,6 L8,3 z" fill="{_LINE}"/></marker>'
         )
         svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.width} {self.height}" '
